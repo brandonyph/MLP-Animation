@@ -1,0 +1,164 @@
+---
+title: "Custom MLP"
+author: "Semra"
+date: "9/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+rm(list = ls())
+
+no_nodes_per_layer <- c(1, 4, 3, 5, 2)
+layers <-  length(no_nodes_per_layer)
+```
+
+```{r}
+generate_data <- function(no_nodes_per_layer = c(2, 3, 2, 3, 2)) {
+  
+  layers <- length(no_nodes_per_layer)
+  if(length(no_nodes_per_layer) < layers){
+    no_nodes_per_layer <- c(no_nodes_per_layer,seq(1,layers-length((no_nodes_per_layer))))
+    }
+  df <- c()
+  max_nodes <- max(no_nodes_per_layer)
+  
+  ##Creating layers
+  for (i in 1:layers) {
+    df$layers <- c(df$layers, rep(i, no_nodes_per_layer[i]))
+  }
+  
+  ##Creating nodes
+  for (i in 1:layers) {
+    nodes_no <- no_nodes_per_layer[i]
+    diff <- (max_nodes - nodes_no)/2
+    df$nodes <- c(df$nodes,seq(1,nodes_no)+diff)
+  }
+  df$weights <- rep(1, length(df$layers))
+  df$epoch <- rep(1, length(df$layers))
+  df$sizes <- rep(1, length(df$layers))
+
+  
+  return(df)
+}
+```
+
+```{r}
+array <- c(4,6,8,6,3)
+df <- generate_data(no_nodes_per_layer = array)
+df <- as.data.frame(df)
+
+library(ggplot2)
+library(gganimate)
+
+## Create base Canvas
+p <- ggplot(data = df)  + geom_point(aes(x = layers, y = nodes))
+
+
+##function to add all arrows
+for(i in 1:(layers-1)){
+  for(j in 1:(array[i])){
+      for(o in 1:(array[i+1])){
+        
+        print(paste0("i-", i))
+        print(paste0("j-", j))
+        print(paste0("o-", o))
+        
+        x1 <- i
+        y1 <- df[df$layers==i,]$nodes[j]
+        x2 <- i+1
+        y2 <- df[df$layers==(i+1),]$nodes[o]
+        
+        df2 <- data.frame(x = c(x1,x2), y = c(y1,y2))
+        
+        p <- p + geom_path(aes(x, y),data=df2)
+        
+        print("-------")
+        #ggsave(paste0("plot-",i,"-",j,"-",o,".jpg"))
+        
+        }
+  }  
+}
+print(p)
+```
+
+
+
+```{r}
+###Create neural network
+library(tensorflow)
+library(keras)
+
+normalize <- function(x)
+    {
+    return((x- min(x)) /(max(x)-min(x)))
+    }
+
+copydata <- function(array,n)
+    {
+    for(i in 1:n){array <- rbind(array,array)}
+    return(array)
+}
+
+train_data <- unlist(iris[,1:4])
+dim(train_data) <- c(150,4)
+train_data  <- train_data  %>% scale() %>% normalize() 
+train_data <- train_data %>% copydata(5)
+
+train_label <- as.factor(iris[,5]) 
+train_label <- train_label %>% as.numeric() %>% as.matrix() 
+train_label <- train_label - 1 
+
+# Convert labels to categorical one-hot encoding
+train_label <- to_categorical(train_label,num_classes = 3)
+
+train_label <- train_label %>% copydata(5)
+
+rm(model)
+
+model <- keras_model_sequential() %>% 
+  layer_dense(units = array[1], activation = "sigmoid", input_shape = c(4)) %>% 
+  layer_dense(units = array[2], activation = "sigmoid") %>% 
+  layer_dense(units = array[3], activation = "sigmoid") %>% 
+  layer_dense(units = array[4], activation = "sigmoid") %>%
+  layer_dense(units = 3, activation = "softmax")
+
+summary(model)
+
+model %>% compile(
+  optimizer = 'rmsprop',
+  loss = 'categorical_crossentropy',
+  metrics = c('accuracy')
+)
+
+weight <- list()
+bias <- list()
+model_stat <- list()
+Overall <- list()
+
+for(e in 1:20){
+
+history <- model %>% 
+  fit(
+    x = train_data, y = train_label,
+    epochs = 1,
+    use_multiprocessing=TRUE,
+    batch_size = 30
+  )
+ for (l in 1:length(array)){
+   weight[[l]] <- as.matrix(model$layers[[l]]$weights[[1]])
+   bias[[l]]   <- as.matrix(model$layers[[l]]$weights[[2]])
+ }
+  model_stat$weight <- weight
+  model_stat$bias <- bias
+  
+  Overall[[e]] <- model_stat
+} 
+
+
+```
+
+
