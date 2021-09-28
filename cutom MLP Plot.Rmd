@@ -12,8 +12,8 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r}
 rm(list = ls())
 
-no_nodes_per_layer <- c(1, 4, 3, 5, 2)
-layers <-  length(no_nodes_per_layer)
+#no_nodes_per_layer <- c(1, 4, 3, 5, 2)
+#layers <-  length(no_nodes_per_layer)
 ```
 
 ```{r}
@@ -37,9 +37,8 @@ generate_data <- function(no_nodes_per_layer = c(2, 3, 2, 3, 2)) {
     diff <- (max_nodes - nodes_no)/2
     df$nodes <- c(df$nodes,seq(1,nodes_no)+diff)
   }
-  df$weights <- rep(1, length(df$layers))
   df$epoch <- rep(1, length(df$layers))
-  df$sizes <- rep(1, length(df$layers))
+  df$sizes <- rep(0, length(df$layers))
 
   
   return(df)
@@ -48,43 +47,10 @@ generate_data <- function(no_nodes_per_layer = c(2, 3, 2, 3, 2)) {
 
 ```{r}
 array <- c(4,6,8,6,3)
+layers <- length(array)
 df <- generate_data(no_nodes_per_layer = array)
 df <- as.data.frame(df)
-
-library(ggplot2)
-library(gganimate)
-
-## Create base Canvas
-p <- ggplot(data = df)  + geom_point(aes(x = layers, y = nodes))
-
-
-##function to add all arrows
-for(i in 1:(layers-1)){
-  for(j in 1:(array[i])){
-      for(o in 1:(array[i+1])){
-        
-        print(paste0("i-", i))
-        print(paste0("j-", j))
-        print(paste0("o-", o))
-        
-        x1 <- i
-        y1 <- df[df$layers==i,]$nodes[j]
-        x2 <- i+1
-        y2 <- df[df$layers==(i+1),]$nodes[o]
-        
-        df2 <- data.frame(x = c(x1,x2), y = c(y1,y2))
-        
-        p <- p + geom_path(aes(x, y),data=df2)
-        
-        print("-------")
-        #ggsave(paste0("plot-",i,"-",j,"-",o,".jpg"))
-        
-        }
-  }  
-}
-print(p)
 ```
-
 
 
 ```{r}
@@ -106,7 +72,7 @@ copydata <- function(array,n)
 train_data <- unlist(iris[,1:4])
 dim(train_data) <- c(150,4)
 train_data  <- train_data  %>% scale() %>% normalize() 
-train_data <- train_data %>% copydata(5)
+train_data <- train_data %>% copydata(4)
 
 train_label <- as.factor(iris[,5]) 
 train_label <- train_label %>% as.numeric() %>% as.matrix() 
@@ -115,7 +81,7 @@ train_label <- train_label - 1
 # Convert labels to categorical one-hot encoding
 train_label <- to_categorical(train_label,num_classes = 3)
 
-train_label <- train_label %>% copydata(5)
+train_label <- train_label %>% copydata(4)
 
 rm(model)
 
@@ -138,15 +104,16 @@ weight <- list()
 bias <- list()
 model_stat <- list()
 Overall <- list()
+acc <- list()
 
-for(e in 1:20){
+for(e in 1:30){
 
 history <- model %>% 
   fit(
     x = train_data, y = train_label,
     epochs = 1,
     use_multiprocessing=TRUE,
-    batch_size = 30
+    batch_size = 20
   )
  for (l in 1:length(array)){
    weight[[l]] <- as.matrix(model$layers[[l]]$weights[[1]])
@@ -156,9 +123,74 @@ history <- model %>%
   model_stat$bias <- bias
   
   Overall[[e]] <- model_stat
+  acc[[e]] <- model$history$history$accuracy
 } 
 
 
 ```
 
+```{r Creating more df based on original value}
+df 
+df3 <- df
+
+for(p in 2:length(Overall)) {
+  df2 <- df
+  df2$epoch <- p
+  
+  for (l in 1:layers) {
+    df2$sizes[df2$layers==l] <-  Overall[[p]]$bias[[l]]
+  }
+  df3 <- rbind(df3, df2)
+}
+
+# Increase size for better plotting
+df3$sizes <- normalize(df3$sizes)
+
+```
+
+
+```{r create plot}
+library(ggplot2)
+library(gganimate)
+
+for (k in 1:30) {
+  df4 <- df3[df3$epoch==k,]
+  ## Create base Canvas
+  p <-
+    ggplot(data = df4)  + geom_point(aes(x = layers, y = nodes, size = sizes*2,color="red")) +
+    labs(x = "Layers",
+         y = "Nodes") +
+    ggtitle(paste0("Epoch:", k,"  ","Accurancy:",round(acc[[k]],2))) +
+    theme_bw()+
+    theme(legend.position = "none")
+  
+  ##function to add all arrows
+  for (i in 1:(layers - 1)) {
+    for (j in 1:(array[i])) {
+      for (o in 1:(array[i + 1])) {
+        #print(paste0("i-", i))
+        #print(paste0("j-", j))
+        #print(paste0("o-", o))
+        
+        x1 <- i
+        y1 <- df4[df4$layers == i, ]$nodes[j]
+        x2 <- i + 1
+        y2 <- df4[df4$layers == (i + 1), ]$nodes[o]
+        
+        coor <- data.frame(x = c(x1, x2), y = c(y1, y2))
+        weights <- Overall[[k]]$weight[[x1+1]][[j,o]]
+        
+        p <- p + geom_path(data = coor, aes(x = x, y = y), alpha = weights, size=0.5,color="blue")
+      }
+    }
+  }
+  print(p)
+  ggsave(paste0("plot-",k,".jpg"),
+            width = 1920,
+            height = 1080,
+            units = c("px"),
+            dpi = 300)
+}
+
+```
 
