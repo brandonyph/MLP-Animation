@@ -2,8 +2,17 @@
 title: "Custom MLP"
 author: "Semra"
 date: "9/20/2021"
-output: html_document
+output:
+  md_document:
+    variant: gfm
 ---
+
+#How to Animate a Neural Network
+1. Declare a basic array
+2. build a dataframe defining every nodes as rows
+3. Build a simple neural Network in tensorflow and Keras
+4. Stack dataframe geenrated per epoch 
+5. Draw individual weights onto each connections and each epoch
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
