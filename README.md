@@ -1,7 +1,11 @@
-\#How to Animate a Neural Network 1. Declare a basic array 2. build a
-dataframe defining every nodes as rows 3. Build a simple neural Network
-in tensorflow and Keras 4. Stack dataframe geenrated per epoch 5. Draw
-individual weights onto each connections and each epoch
+\#How to Animate a Neural Network  
+1. Declare a basic array  
+2. build a dataframe defining every nodes as rows  
+3. Build a simple neural Network in tensorflow and Keras  
+4. Stack dataframe geenrated per epoch  
+5. Draw individual weights onto each connections and each epoch
+
+# Remove all objects in current workspace
 
 ``` r
 rm(list = ls())
@@ -9,6 +13,8 @@ rm(list = ls())
 #no_nodes_per_layer <- c(1, 4, 3, 5, 2)
 #layers <-  length(no_nodes_per_layer)
 ```
+
+# Create a function to generate base dataframe for plotting
 
 ``` r
 generate_data <- function(no_nodes_per_layer = c(2, 3, 2, 3, 2)) {
@@ -39,12 +45,16 @@ generate_data <- function(no_nodes_per_layer = c(2, 3, 2, 3, 2)) {
 }
 ```
 
+# Generate the baisc canvas based on a simple list
+
 ``` r
 array <- c(4,6,8,6,3)
 layers <- length(array)
 df <- generate_data(no_nodes_per_layer = array)
 df <- as.data.frame(df)
 ```
+
+# Create a simple neural network to be plotted
 
 ``` r
 ###Create neural network
@@ -154,6 +164,8 @@ history <- model %>%
 } 
 ```
 
+# Stack the dataframe based on number of epoch
+
 ``` r
 df 
 ```
@@ -203,6 +215,8 @@ for(p in 2:length(Overall)) {
 # Increase size for better plotting
 df3$sizes <- normalize(df3$sizes)
 ```
+
+# Generate plot and save the image in every epoch
 
 ``` r
 library(ggplot2)
